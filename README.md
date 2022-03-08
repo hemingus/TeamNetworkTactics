@@ -1,2 +1,2 @@
-# TeamNetworkTactics
-from TLT to TNT
+# team-local-tactics
+A game for the mandatory assignment
