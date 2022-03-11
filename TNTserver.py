@@ -1,16 +1,12 @@
 import socket
 from _thread import *
-import sys
-from TLT import input_champion
 import threading
-import rich
 from rich import print
-from rich.prompt import Prompt
-from rich.table import Table
 import pickle
+from time import sleep
 
 from champlistloader import load_some_champs
-from core import Champion, Match, Shape, Team
+from core import Match, Team
 
 
 SERVER = "192.168.150.1"
@@ -25,83 +21,78 @@ try:
 except socket.error as e:
     str(e)
 
-player1 = []
-player2 = []
-
-def handle_client(conn, addr):
+def handle_client(conn, addr, p):
     print(f"[NEW CONNECTION] {addr} connected.")
     conn.send(f'You connected to TNTserver on {addr}'
             '\n'
-            'Welcome to [bold yellow]Team Local Tactics[/bold yellow]!'
+            'Welcome to [bold yellow]Team Network Tactics[/bold yellow]!'
             '\n'
             'Each player choose a champion each time.'
             '\n'.encode(FORMAT))
-    player1_select = conn.recv(2048)
-    player1 = pickle.loads(player1_select)
-    print(f"Player 1 team: {player1}")
-    conn.send(f"Player 1 team: {player1}".encode(FORMAT))
-    
-
-    
-
-
-    """connected = True
+    conn.send(f"You are player {str(p)}".encode(FORMAT))
+    connected = True
     while connected:
-        msg_length = conn.recv(2048).decode(FORMAT)
-        if msg_length:
-            msg_length = int(msg_length)
-            msg = conn.recv(msg_length).decode(FORMAT)
-            if msg == DISCONNECT_MSG:
-                connected = False
-            print(f"[{addr}] {msg}")
-            conn.send(f"Message {msg} received!".encode(FORMAT))
-            print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")"""
-            
-       
+        loop(conn, p)
+        if len(player1) == team_size and len(player2) == team_size:
+            if p == 1:
+                if len(player2) > 0:
+                    conn.send(player2[-1].encode(FORMAT))
+            if p == 2:
+                match = Match(
+                            Team([champions[name] for name in player1]),
+                            Team([champions[name] for name in player2])
+                            )
+                match.play()
+                matches.append(match)
+            print("calculating result...")
+            sleep(3)
+            summary = pickle.dumps(matches[0])
+            conn.send(summary)
+            break
 
-
-
-def threaded_client(conn, p, gameID):
-    global idCount
-    conn.send(str.encode(str(p)))
-
-    reply = ""
-    while True:
-        data = conn.recv(4096).decode()
-
-        #if gameID in games:
-            #game = games[gameID]
-
-"""
-connected = set()
-games = {}
-idCount = 0
-
-while True:
-    conn, addr = s.accept()
-    print(f"[NEW CONNECTION] {addr}")
-
-    idCount += 1
-    p = 0
-    gameID = (idCount - 1)//2
-    if idCount % 2 == 1:
-        games[gameID] = TLT(gameID)
-        print("Creating a new game...")
-    else:
-        games[gameID].ready = True
-        p = 1
-
-    start_new_thread(threaded_client, (conn,)) 
-"""
-
+def loop(conn, p):
+    sleep(1)
+    if p == 1:
+        try:
+            if len(player1) == len(player2) and len(player1) < team_size:
+                if len(player2) > 0:
+                    conn.send(player2[-1].encode(FORMAT))
+                player1_select = conn.recv(2048)
+            if player1_select:
+                player1.append(player1_select.decode(FORMAT))
+                print(f"Player 1 team: {player1}") 
+        except:
+            pass
+          
+    if p == 2:
+        try:
+            if len(player1) > len(player2) and len(player1) > 0:
+                conn.send(player1[-1].encode(FORMAT))
+                player2_select = conn.recv(2048)
+            if player2_select:
+                player2.append(player2_select.decode(FORMAT))
+                print(f"Player 2 team: {player2}")
+        except:
+            pass
+              
 def start():
-    s.listen()
+
+    s.listen(2)
     print(f"[LISTENING] Server is listening on {SERVER}")
     while True:
         conn, addr = s.accept()
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        p = 1
+        if threading.active_count() % 2 == 0:
+            p = 2
+        thread = threading.Thread(target=handle_client, args=(conn, addr, p))
         thread.start()
         print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
+
+team_size = 3
+matches = []
+champions = load_some_champs()
+player1 = []
+player2 = []
 
 def main() -> None:
     print("[STARTING] server is starting...")
