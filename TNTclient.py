@@ -6,7 +6,7 @@ from time import sleep
 
 FORMAT = "utf-8"
 PORT = 9000
-SERVER = "192.168.150.1"
+SERVER = "localhost"
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect((SERVER, PORT))
@@ -32,7 +32,7 @@ def run():
     print_available_champs(champions)
     connected = True
     while connected:
-        loop(p)
+        update_team(p)
         if len(player1) == team_size and len(player2) == team_size:
             rich.print(f"[bold red]Red team[/bold red]: {player1}")
             rich.print(f"[bold blue]Blue team[/bold blue]: {player2}")
@@ -46,7 +46,8 @@ def run():
                     sleep(2)
                     print_match_summary(summary)
                     break
-                else: loop(p)
+                else: 
+                    update_team(p)
             except:
                 pass
         
@@ -70,7 +71,7 @@ def run():
     print("Thanks for playing Team Network Tactics!")
     client.close()
         
-def loop(p):
+def update_team(p):
     if len(player1) == len(player2):
         player1turn = True
     else:

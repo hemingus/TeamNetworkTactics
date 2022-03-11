@@ -4,22 +4,47 @@ import threading
 from rich import print
 import pickle
 from time import sleep
-
 from champlistloader import load_some_champs
 from core import Match, Team
 
-
-SERVER = "192.168.150.1"
+SERVER = "localhost"
 PORT = 9000
+DBPORT = 9100
 FORMAT = "utf-8"
-DISCONNECT_MSG = "!DISCONNECT"
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s_data = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 try:
     s.bind((SERVER, PORT))
 except socket.error as e:
     str(e)
+
+team_size = 3
+matches = []
+champions = load_some_champs()
+player1 = []
+player2 = []
+
+def send_data(data):
+    message = data.encode(FORMAT)
+    s_data.sendto(message, (SERVER, DBPORT))
+
+def connect_db():
+    try:
+        print("Connecting to DB...")
+        s_data.connect((SERVER, DBPORT))           
+    except:
+        print("Could not connect to DB")
+        pass
+    while True:
+        if len(matches) >= 1:
+            sleep(5)
+            print("Sending match data...")
+            s_data.send(pickle.dumps(matches[-1]))
+            print("disconnecting from DB")
+            s_data.close()
+            break
 
 def handle_client(conn, addr, p):
     print(f"[NEW CONNECTION] {addr} connected.")
@@ -76,23 +101,19 @@ def loop(conn, p):
             pass
               
 def start():
-
+    db_thread = threading.Thread(target=connect_db)
+    db_thread.start()
     s.listen(2)
     print(f"[LISTENING] Server is listening on {SERVER}")
+
     while True:
         conn, addr = s.accept()
         p = 1
-        if threading.active_count() % 2 == 0:
+        if threading.active_count() % 2 == 1:
             p = 2
         thread = threading.Thread(target=handle_client, args=(conn, addr, p))
         thread.start()
         print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
-
-team_size = 3
-matches = []
-champions = load_some_champs()
-player1 = []
-player2 = []
 
 def main() -> None:
     print("[STARTING] server is starting...")
